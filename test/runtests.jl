@@ -35,7 +35,7 @@ function to_diff_eigvecs(x)
 end
 
 @testset "DifferentiableEigen.jl Tests" begin
-    
+
     @testset "Results" begin
         v̂al, v̂ec = LinearAlgebra.eigen(A)
         val, vec = eigen(A)
