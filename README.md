@@ -1,5 +1,7 @@
 # DifferentiableEigen.jl
-🚧 **WORK IN PROGRESS - FILES WILL BE COMITTED SOON** 🚧
+[![Run Tests](https://github.com/ThummeTo/DifferentiableEigen.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/ThummeTo/DifferentiableEigen.jl/actions/workflows/Test.yml)
+[![Coverage](https://codecov.io/gh/ThummeTo/DifferentiableEigen.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/ThummeTo/DifferentiableEigen.jl)
+[![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 
 ## What is DifferentiableEigen.jl?
 The current implementation of `LinearAlgebra.eigen` does not support sensitivities. 
@@ -28,10 +30,10 @@ import ForwardDiff
 A = rand(3,3)   # Random matrix 3x3 
 
 eigvals, eigvecs = LinearAlgebra.eigen(A)   # This is the default eigen-function in Julia. Note, that eigenvalues and -vectors are complex numbers.
-jac = ForwardDiff.jacobian(LinearAlgebra.eigen, A)   # That doesn't work!
+jac = ForwardDiff.jacobian((A) -> LinearAlgebra.eigen(A)[1], A)   # That doesn't work!
 
 eigvals, eigvecs = DifferentiableEigen.eigen(A)   # This is the differentiable eigen-function. Note, that eigenvalues and -vectors are not complex numbers, but real arrays!  
-jac = ForwardDiff.jacobian(DifferentiableEigen.eigen, A)   # That does work! eigenvalue- and eigenvector-sensitvities
+jac = ForwardDiff.jacobian((A) -> DifferentiableEigen.eigen(A)[1], A)   # That does work! eigenvalue- and eigenvector-sensitvities
 ```
 
 ## Acknowledgement
@@ -44,6 +46,5 @@ The sensitivity formulas are picked from:
 Michael B. Giles. 2008. **An extended collection of matrix derivative results for forward and reverse mode algorithmic differentiation.** [PDF](https://people.maths.ox.ac.uk/gilesm/files/NA-08-01.pdf)
 
 ## How to cite? Related publications?
-This package was used for the following publication:
-Tobias Thummerer and Lars Mikelsons. 2023. **Eigen-informed NeuralODEs: Dealing with stability and convergence issues of NeuralODEs.** ArXiv.
+Tobias Thummerer and Lars Mikelsons. 2023. **Eigen-informed NeuralODEs: Dealing with stability and convergence issues of NeuralODEs.** ArXiv. [PDF](https://www.researchgate.net/publication/368364260_Eigen-informed_NeuralODEs_Dealing_with_stability_and_convergence_issues_of_NeuralODEs)
 
