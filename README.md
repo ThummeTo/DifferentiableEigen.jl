@@ -13,7 +13,7 @@ This `eigen` function is differentiable by every AD-framework with support for *
 
 2\. Install [*DifferentiableEigen.jl*](https://github.com/ThummeTo/DifferentiableEigen.jl):
 ```julia-repl
-(@v1.6) pkg> add "https://github.com/ThummeTo/DifferentiableEigen.jl" # after the package release, one can use `add DifferentiableEigen`
+(@v1.6) pkg> add DifferentiableEigen
 ```
 
 3\. If you want to check that everything works correctly, you can run the tests bundled with [*DifferentiableEigen.jl*](https://github.com/ThummeTo/DifferentiableEigen.jl):
