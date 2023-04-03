@@ -46,5 +46,5 @@ The sensitivity formulas are picked from:
 Michael B. Giles. 2008. **An extended collection of matrix derivative results for forward and reverse mode algorithmic differentiation.** [PDF](https://people.maths.ox.ac.uk/gilesm/files/NA-08-01.pdf)
 
 ## How to cite? Related publications?
-Tobias Thummerer and Lars Mikelsons. 2023. **Eigen-informed NeuralODEs: Dealing with stability and convergence issues of NeuralODEs.** ArXiv. [PDF](https://www.researchgate.net/publication/368364260_Eigen-informed_NeuralODEs_Dealing_with_stability_and_convergence_issues_of_NeuralODEs)
+Tobias Thummerer and Lars Mikelsons. 2023. **Eigen-informed NeuralODEs: Dealing with stability and convergence issues of NeuralODEs.** ArXiv. [PDF](https://arxiv.org/abs/2302.10892)
 
