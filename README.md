@@ -1,6 +1,6 @@
 # DifferentiableEigen.jl
 [![Run Tests](https://github.com/ThummeTo/DifferentiableEigen.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/ThummeTo/DifferentiableEigen.jl/actions/workflows/Test.yml)
-[![Coverage](https://codecov.io/gh/ThummeTo/DifferentiableEigen.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/ThummeTo/DifferentiableEigen.jl)
+[![Coverage](https://codecov.io/gh/ThummeTo/DifferentiableEigen.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ThummeTo/DifferentiableEigen.jl)
 [![ColPrac: Contributor's Guide on Collaborative Practices for Community Packages](https://img.shields.io/badge/ColPrac-Contributor's%20Guide-blueviolet)](https://github.com/SciML/ColPrac)
 
 ## What is DifferentiableEigen.jl?
