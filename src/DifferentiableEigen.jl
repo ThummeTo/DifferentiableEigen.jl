@@ -13,11 +13,13 @@ import ForwardDiffChainRules.ChainRulesCore
 import ForwardDiffChainRules.ForwardDiff
 import ForwardDiffChainRules
 
+using ReverseDiff
+
 include(joinpath(@__DIR__, "utils.jl"))
 
 # a wrapper to LinearAlgebra.eigen, but with real array output instead of complex array
 function eigen(A::AbstractMatrix)
-    A = undual(A)
+    A = unsense(A)
     val, vec = LinearAlgebra.eigen(A)
     
     return comp2Arr(val), comp2Arr(vec) 
@@ -26,10 +28,8 @@ export eigen
 
 function ChainRulesCore.frule((Δself, ΔA), ::typeof(eigen), A::AbstractMatrix)
     
-    A = undual(A)
+    e,U = LinearAlgebra.eigen(unsense(A))
     
-    eU = LinearAlgebra.eigen(A)
-    e,U = eU
     n = size(A,1)
 
     Ω = comp2Arr(e), comp2Arr(U) 

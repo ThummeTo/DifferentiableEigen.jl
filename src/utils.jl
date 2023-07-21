@@ -20,6 +20,29 @@ function undual(e)
     return e
 end
 
+# makes Reals from ForwardDiff/ReverseDiff.TrackedXXX scalar/vector
+function unsense(e::AbstractArray)
+    return collect(unsense(c) for c in e)
+end
+function unsense(e::Tuple)
+    return (collect(unsense(c) for c in e)...,)
+end
+function unsense(e::ReverseDiff.TrackedReal)
+    return ReverseDiff.value(e)
+end
+function unsense(e::ReverseDiff.TrackedArray)
+    return ReverseDiff.value(e)
+end
+function unsense(e::ForwardDiff.Dual)
+    return ForwardDiff.value(e)
+end
+function unsense(::Nothing)
+    return nothing
+end
+function unsense(e)
+    return e
+end
+
 # ToDo
 function comp2Arr(comp::Union{AbstractVector, AbstractMatrix})
     l = length(comp)
