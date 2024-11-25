@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023 Tobias Thummerer, Lars Mikelsons
+# Copyright (c) 2023 Tobias Thummerer
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
