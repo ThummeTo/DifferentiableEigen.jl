@@ -10,41 +10,42 @@ using Flux
 import SciMLBase: RightRootFind
 using DifferentialEquations
 using DiffEqCallbacks
-using DiffEqFlux: ODEFunction, basic_tgrad, ODEProblem, ZygoteVJP, InterpolatingAdjoint, solve, NeuralODE
+using DiffEqFlux:
+    ODEFunction, basic_tgrad, ODEProblem, ZygoteVJP, InterpolatingAdjoint, solve, NeuralODE
 using Plots
 import ForwardDiff
 import LinearAlgebra: eigvals, eigvecs, det, UpperTriangular, I, Diagonal, rank, norm
 import LinearAlgebra
 import FMIBase: undual, isdual
-using Flux.Losses:mse
+using Flux.Losses: mse
 import Colors
 using Printf: @sprintf
 using LaTeXStrings
 using NLsolve
 using Colors
 
-function prepareEigPairs(eigvalData::AbstractVector{<:AbstractVector}; eps=1e-16)
+function prepareEigPairs(eigvalData::AbstractVector{<:AbstractVector}; eps = 1e-16)
     eigsPairs = Vector{Vector{Int}}[]
     for eigs in eigvalData
         pairs = prepareEigPairs(eigs)
-       
+
         push!(eigsPairs, pairs)
-        
+
     end
     return eigsPairs
 end
 
-function prepareEigPairs(eigs::AbstractVector{<:Real}; eps=1e-16)
-    
-    i=1
+function prepareEigPairs(eigs::AbstractVector{<:Real}; eps = 1e-16)
+
+    i = 1
     pairs = Vector{Int}[]
-    while i <= (length(eigs)-2)
+    while i <= (length(eigs) - 2)
         if abs(eigs[i] - eigs[i+2]) < eps
-            push!(pairs, [Int((i-1)/2+1), Int((i+1)/2+1)])
+            push!(pairs, [Int((i - 1) / 2 + 1), Int((i + 1) / 2 + 1)])
         end
         i += 2
     end
-    
+
     return pairs
 end
 
@@ -54,38 +55,42 @@ function prepareStiffness(eigvalData)
 end
 
 function startPlot(args...; kwargs...)
-    return Plots.plot(args...; background_color_legend=colorant"rgba(255,255,255,0.7)", kwargs...)
+    return Plots.plot(
+        args...;
+        background_color_legend = colorant"rgba(255,255,255,0.7)",
+        kwargs...,
+    )
 end
 
 # right side of the ODE (out-of-place)
 function f(x, p, t)
     return neuralODE.re(p)(x)
-end 
+end
 
 function translational_pendulum(x, p)
-    
+
     c, d = p
-    
+
     s = x[1]
     v = x[2]
-    a = -c*s -d*v
+    a = -c * s - d * v
 
     return [v, a]
-end 
+end
 
 function vanderpol(_x, p)
-    
-    μ  = p[1]
+
+    μ = p[1]
 
     x = _x[1]
     dx = _x[2]
-    ddx = μ * (1- x^2)*dx - x
+    ddx = μ * (1 - x^2) * dx - x
 
     return [dx, ddx]
-end 
+end
 
 function translational_doublependulum(x)
-    
+
     c1 = 10.0
     d1 = 0.1
     c2 = 25.0
@@ -95,19 +100,19 @@ function translational_doublependulum(x)
     v1 = x[2]
     s2 = x[3]
     v2 = x[4]
-    a1 =  c2*(s2-s1) +d2*(v2-v1) -c1*(s1) -d1*v1
-    a2 = -c2*(s2-s1) -d2*(v2-v1)
+    a1 = c2 * (s2 - s1) + d2 * (v2 - v1) - c1 * (s1) - d1 * v1
+    a2 = -c2 * (s2 - s1) - d2 * (v2 - v1)
 
     return [v1, a1, v2, a2]
-end 
+end
 
 function rotational_doublependulum_loop!(res, iter, x)
-    m1 = 1.0 
+    m1 = 1.0
     m2 = 1.0
-    l1 = 0.3 
+    l1 = 0.3
     l2 = 0.3
     g = 9.81
-    
+
     α1 = x[1]
     dα1 = x[2]
     α2 = x[3]
@@ -116,11 +121,19 @@ function rotational_doublependulum_loop!(res, iter, x)
     ddα1 = iter[1]
     ddα2 = iter[2]
 
-    c = cos(α1-α2)
-    s = sin(α1-α2)
+    c = cos(α1 - α2)
+    s = sin(α1 - α2)
 
-    res[1] = (m2*g*sin(α2)*c - m2*s*(l1*dα1^2*c + L2*dα2^2) - (m1+m2)*g*sin(α1)) / l1 / (m1 + m2*s^2)
-    res[2] = ((m1+m2)*(l1*dα1^2*s - g*sin(α2) + g*sin(α1)*c) + m2*l2*dα2^2*s*c) / l2 / (m1 + m2*s^2)
+    res[1] =
+        (
+            m2 * g * sin(α2) * c - m2 * s * (l1 * dα1^2 * c + L2 * dα2^2) -
+            (m1 + m2) * g * sin(α1)
+        ) / l1 / (m1 + m2 * s^2)
+    res[2] =
+        (
+            (m1 + m2) * (l1 * dα1^2 * s - g * sin(α2) + g * sin(α1) * c) +
+            m2 * l2 * dα2^2 * s * c
+        ) / l2 / (m1 + m2 * s^2)
 
     nothing
 end
@@ -131,7 +144,7 @@ function rotational_doublependulum(x, p)
     global lastResiduum
 
     m1, m2, l1, l2, g = p
-    
+
     α1 = x[1]
     dα1 = x[2]
     α2 = x[3]
@@ -149,43 +162,51 @@ function rotational_doublependulum(x, p)
     # ddα1 = res.zero[1]
     # ddα2 = res.zero[2]
 
-    c = cos(α1-α2)
-    s = sin(α1-α2)
+    c = cos(α1 - α2)
+    s = sin(α1 - α2)
 
-    ddα1 = (m2*g*sin(α2)*c - m2*s*(l1*dα1^2*c + l2*dα2^2) - (m1+m2)*g*sin(α1)) / l1 / (m1 + m2*s^2)
-    ddα2 = ((m1+m2)*(l1*dα1^2*s - g*sin(α2) + g*sin(α1)*c) + m2*l2*dα2^2*s*c) / l2 / (m1 + m2*s^2)
+    ddα1 =
+        (
+            m2 * g * sin(α2) * c - m2 * s * (l1 * dα1^2 * c + l2 * dα2^2) -
+            (m1 + m2) * g * sin(α1)
+        ) / l1 / (m1 + m2 * s^2)
+    ddα2 =
+        (
+            (m1 + m2) * (l1 * dα1^2 * s - g * sin(α2) + g * sin(α1) * c) +
+            m2 * l2 * dα2^2 * s * c
+        ) / l2 / (m1 + m2 * s^2)
 
     #lastResiduum = copy(res.zero)
 
     return [dα1, ddα1, dα2, ddα2]
-end 
+end
 
 function rotational_pendulum(x, p)
 
     global lastResiduum
 
     l, g = p
-    
+
     α = x[1]
     dα = x[2]
-    ddα = -g/l*sin(α)
+    ddα = -g / l * sin(α)
 
     return [dα, ddα]
-end 
+end
 
 function duffing(_x, p)
 
     global lastResiduum
 
     α, β, γ = p
-    
+
     x = _x[1]
     dx = _x[2]
 
     ddx = -γ * dx - α * x - β * (x^3)
 
     return [dx, ddx]
-end 
+end
 
 ### ML
 
@@ -193,8 +214,8 @@ using ChainRulesCore
 
 function _eigen(A::AbstractMatrix)
     A = undual(A)
-    val, vec = LinearAlgebra.eigen(A; sortby=LinearAlgebra.eigsortby)
-    
+    val, vec = LinearAlgebra.eigen(A; sortby = LinearAlgebra.eigsortby)
+
     @assert !isdual(val) "!!!"
     @assert !isdual(vec) "!!!"
 
@@ -205,10 +226,10 @@ function ChainRulesCore.frule((Δself, ΔA), ::typeof(_eigen), A::AbstractMatrix
     #@info "frule start"
 
     A = undual(A)
-    
-    eV = LinearAlgebra.eigen(A; sortby=LinearAlgebra.eigsortby)
-    e,V = eV
-    n = size(A,1)
+
+    eV = LinearAlgebra.eigen(A; sortby = LinearAlgebra.eigsortby)
+    e, V = eV
+    n = size(A, 1)
 
     Ω = comp2Arr(e), comp2Arr(V) # Ω = real.(e), real.(V)
     ∂e = ZeroTangent()
@@ -216,7 +237,7 @@ function ChainRulesCore.frule((Δself, ΔA), ::typeof(_eigen), A::AbstractMatrix
 
     #D = Diagonal(e)
     U = V
-    F = [i==j ? 0 : inv(e[j] - e[i]) for i=1:n, j=1:n]
+    F = [i == j ? 0 : inv(e[j] - e[i]) for i = 1:n, j = 1:n]
 
     @assert size(U) == size(ΔA)
 
@@ -238,14 +259,14 @@ function ChainRulesCore.frule((Δself, ΔA), ::typeof(_eigen), A::AbstractMatrix
     @assert !isdual(Ω[1]) "!!!"
     @assert !isdual(Ω[2]) "!!!"
 
-    return Ω, ∂Ω 
+    return Ω, ∂Ω
 end
 
 function ChainRulesCore.rrule(::typeof(_eigen), A::AbstractMatrix)
-    
+
     eU = eigen(A)
-    e,U = eU
-    n = size(A,1)
+    e, U = eU
+    n = size(A, 1)
 
     Ω = eU
 
@@ -255,22 +276,22 @@ function ChainRulesCore.rrule(::typeof(_eigen), A::AbstractMatrix)
 
         Ā = ZeroTangent()
 
-        D̄ = nothing 
-        
+        D̄ = nothing
+
         if ē != nothing
             D̄ = Diagonal(ē)
         end
-        
+
         if Ū === nothing
             Ā = inv(U)' * D̄ * U'
 
         elseif D === nothing
-            F = [i==j ? 0 : inv(e[j] - e[i]) for i=1:n, j=1:n]
-            Ā = inv(U)'*(F .* (U' * Ū))*U'
+            F = [i == j ? 0 : inv(e[j] - e[i]) for i = 1:n, j = 1:n]
+            Ā = inv(U)' * (F .* (U' * Ū)) * U'
 
         else
-            F = [i==j ? 0 : inv(e[j] - e[i]) for i=1:n, j=1:n]
-            Ā = inv(U)'*(D̄ + F .* (U' * Ū))*U'
+            F = [i == j ? 0 : inv(e[j] - e[i]) for i = 1:n, j = 1:n]
+            Ā = inv(U)' * (D̄ + F .* (U' * Ū)) * U'
 
         end
 
@@ -279,7 +300,7 @@ function ChainRulesCore.rrule(::typeof(_eigen), A::AbstractMatrix)
         ∂Ω = f̄, Ā
     end
 
-    return Ω, pullback 
+    return Ω, pullback
 end
 
 import ForwardDiffChainRules: @ForwardDiff_frule
@@ -288,7 +309,7 @@ import ForwardDiffChainRules: @ForwardDiff_frule
 function comp2Arr(comp)
     l = length(comp)
     a = Real[]
-    for i in 1:l
+    for i = 1:l
         re = real(comp[i])
         im = imag(comp[i])
 
@@ -308,12 +329,12 @@ function arr2Comp(arr, size)
         im = arr[i+1]
 
         push!(a, Complex(re, im))
-        
+
         # inc by 2
-        i+=2
+        i += 2
     end
 
-    ret =  reshape(a, size)
+    ret = reshape(a, size)
 
     return ret
 end
@@ -324,25 +345,25 @@ global eigsIm = zeros(numStates)
 function trackEigvals(eigs)
     global eigsRe, eigsIm
 
-    numEigs = Int(length(eigs)/2)
+    numEigs = Int(length(eigs) / 2)
 
     tracked = zeros(Bool, numEigs)
     order = []
-    
-    for i in 1:numEigs
 
-        re_i = eigsRe[i] 
+    for i = 1:numEigs
+
+        re_i = eigsRe[i]
         im_i = eigsIm[i]
 
-        closest = 0 
+        closest = 0
         closestDist = Inf
 
-        for j in 1:numEigs
+        for j = 1:numEigs
             if !tracked[j]
 
                 re_j = eigs[(j-1)*2+1]
                 im_j = eigs[j*2]
-                dist = sqrt((re_i-re_j)^2 + (im_i-im_j)^2)
+                dist = sqrt((re_i - re_j)^2 + (im_i - im_j)^2)
 
                 if dist < closestDist
                     closest = j
@@ -367,39 +388,66 @@ global eigsArray = nothing
 function losssum(p)
     global solution, lossReal, lossImag, lossStab, lossPos, loss, eigsArray
 
-    solution = solve(prob, neuralODE.args...; saveat=saveat, neuralODE.kwargs..., p=p) # sensealg=sensealg, 
+    solution = solve(prob, neuralODE.args...; saveat = saveat, neuralODE.kwargs..., p = p) # sensealg=sensealg, 
 
     t = 0.0
     _f = _x -> f(_x, p, t)
 
     eigsArray = collect(_eigen(ForwardDiff.jacobian(_f, x))[1] for x in solution.u)
 
-    lossSolution = gradSolution(solution; error=(x, y)->abs(x-y).*gradScale[1] / numTs )
+    lossSolution =
+        gradSolution(solution; error = (x, y) -> abs(x - y) .* gradScale[1] / numTs)
 
-    lossFrequency = gradFrequency(eigsArray, eigvalData; error=(x, y)->abs(x-y)*gradScale[2] / numEigs /numTs )
-    lossDamping = gradDamping(eigsArray, eigvalData; error=(x, y)->abs(x-y)*gradScale[3] / numEigs /numTs)
-    lossStability = gradStability(eigsArray; error= (x) -> max(x, 0.0)*gradScale[4] / numEigs / numTs)
-    lossOscillation = gradOscillation(eigsArray, eigvalData; error=(x, y)->abs(x-y)*gradScale[5] / numEigs /numTs) # , eigsPairs
-    lossStiffness = gradStiffness(eigsArray, stiffnessData; error=(x, y)->abs(x-y)*gradScale[6] /numTs )
-    
-    return [lossSolution, lossFrequency, lossDamping, lossStability, lossOscillation, lossStiffness]
+    lossFrequency = gradFrequency(
+        eigsArray,
+        eigvalData;
+        error = (x, y) -> abs(x - y) * gradScale[2] / numEigs / numTs,
+    )
+    lossDamping = gradDamping(
+        eigsArray,
+        eigvalData;
+        error = (x, y) -> abs(x - y) * gradScale[3] / numEigs / numTs,
+    )
+    lossStability = gradStability(
+        eigsArray;
+        error = (x) -> max(x, 0.0) * gradScale[4] / numEigs / numTs,
+    )
+    lossOscillation = gradOscillation(
+        eigsArray,
+        eigvalData;
+        error = (x, y) -> abs(x - y) * gradScale[5] / numEigs / numTs,
+    ) # , eigsPairs
+    lossStiffness = gradStiffness(
+        eigsArray,
+        stiffnessData;
+        error = (x, y) -> abs(x - y) * gradScale[6] / numTs,
+    )
+
+    return [
+        lossSolution,
+        lossFrequency,
+        lossDamping,
+        lossStability,
+        lossOscillation,
+        lossStiffness,
+    ]
 end
 
-function gradSolution(solution; error=mse)
-    posNet = collect(data[1] for data in solution.u) 
+function gradSolution(solution; error = mse)
+    posNet = collect(data[1] for data in solution.u)
     velNet = collect(data[2] for data in solution.u)
 
-    pos2Net = nothing 
+    pos2Net = nothing
     vel2Net = nothing
     if numStates == 4
-        pos2Net = collect(data[3] for data in solution.u) 
+        pos2Net = collect(data[3] for data in solution.u)
         vel2Net = collect(data[4] for data in solution.u)
     end
 
-    lossSolution = sum(collect(error(posNet[i], posData[i]) for i in 1:numTs)) 
+    lossSolution = sum(collect(error(posNet[i], posData[i]) for i = 1:numTs))
 
-    if numStates == 4 
-        lossSolution += sum(collect(error(pos2Net[i], pos2Data[i]) for i in 1:numTs)) 
+    if numStates == 4
+        lossSolution += sum(collect(error(pos2Net[i], pos2Data[i]) for i = 1:numTs))
     end
 
     return lossSolution
@@ -407,63 +455,63 @@ end
 
 function getFrequency(re, im)
     #return sqrt(re^2 + im^2)
-    return abs(im) / (2.0 * π) 
+    return abs(im) / (2.0 * π)
 end
 
-function getDamping(re, im; eps=1e-16)
+function getDamping(re, im; eps = 1e-16)
     #return cos(atan(im, re))
     len = sqrt(re^2 + im^2)
     if len < eps
         return 0.0
     else
         return -re / len
-    end 
+    end
 end
 
-function getStiffness(eigs, eps=1e-32)
-    numEigs = Int(length(eigs)/2)
+function getStiffness(eigs, eps = 1e-32)
+    numEigs = Int(length(eigs) / 2)
 
     _min = Inf
     _max = -Inf
-    for j in 1:numEigs
+    for j = 1:numEigs
         re = abs(eigs[(j-1)*2+1])
 
-        if re > _max 
-            _max = re 
+        if re > _max
+            _max = re
         end
 
-        if re < _min 
-            _min = re 
+        if re < _min
+            _min = re
         end
     end
 
-    if _min > eps 
-        return _max/_min
-    else 
+    if _min > eps
+        return _max / _min
+    else
         return Inf
     end
 end
 
-function gradEigCompare(func, eigsArray, eigsArrayData; error=mse)
+function gradEigCompare(func, eigsArray, eigsArrayData; error = mse)
     loss = 0.0
 
     # for every time step i
-    for i in 1:length(eigsArray) 
+    for i = 1:length(eigsArray)
 
         eigs = eigsArray[i]
         eigsData = eigsArrayData[i]
 
-        numEigs = Int(length(eigs)/2)
+        numEigs = Int(length(eigs) / 2)
 
         pairs = prepareEigPairs(eigs)
         matchedPairs = zeros(Bool, length(pairs))
         pairsData = prepareEigPairs(eigsData)
 
         # for every pair in DATA
-        for j in 1:length(pairsData)
+        for j = 1:length(pairsData)
 
             minError = Inf
-            minErrorIndex = nothing 
+            minErrorIndex = nothing
 
             pairData = pairsData[j]
             î1 = pairData[1]
@@ -473,9 +521,9 @@ function gradEigCompare(func, eigsArray, eigsArrayData; error=mse)
             îm1 = eigsData[î1*2]
             r̂e2 = eigsData[(î2-1)*2+1]
             îm2 = eigsData[î2*2]
-            
+
             # for every pair in NODE
-            for k in 1:length(pairs)
+            for k = 1:length(pairs)
 
                 # if unmatched pair
                 if matchedPairs[k]
@@ -491,10 +539,12 @@ function gradEigCompare(func, eigsArray, eigsArrayData; error=mse)
                 re2 = eigs[(i2-1)*2+1]
                 im2 = eigs[i2*2]
 
-                er = error(func(re1, im1), func(r̂e1, îm1)) + error(func(re2, im2), func(r̂e2, îm2))
+                er =
+                    error(func(re1, im1), func(r̂e1, îm1)) +
+                    error(func(re2, im2), func(r̂e2, îm2))
                 if er < minError
-                    minError = er 
-                    minErrorIndex = k 
+                    minError = er
+                    minErrorIndex = k
                 end
             end
 
@@ -519,14 +569,14 @@ function gradEigCompare(func, eigsArray, eigsArrayData; error=mse)
     return loss
 end
 
-function gradStability(eigsArray; error=mse)
+function gradStability(eigsArray; error = mse)
     loss = 0.0
-    for i in 1:length(eigsArray) 
+    for i = 1:length(eigsArray)
         eigs = eigsArray[i]
-        
-        numEigs = Int(length(eigs)/2)
 
-        for j in 1:numEigs
+        numEigs = Int(length(eigs) / 2)
+
+        for j = 1:numEigs
             re = eigs[(j-1)*2+1]
 
             loss += error(re)
@@ -535,24 +585,24 @@ function gradStability(eigsArray; error=mse)
     return loss
 end
 
-function gradStiffness(eigsArray, stiffnessData; error=mse, eps=1e-32)
+function gradStiffness(eigsArray, stiffnessData; error = mse, eps = 1e-32)
     loss = 0.0
-    for i in 1:length(eigsArray) 
+    for i = 1:length(eigsArray)
         eigs = eigsArray[i]
-        
+
         loss += error(getStiffness(eigs), stiffnessData[i])
     end
     return loss
 end
 
-function gradOscillation(eigsArray, eigsArrayData; error=mse)
+function gradOscillation(eigsArray, eigsArrayData; error = mse)
     loss = 0.0
-    for i in 1:length(eigsArray) 
+    for i = 1:length(eigsArray)
 
         eigs = eigsArray[i]
         eigsData = eigsArrayData[i]
 
-        numEigs = Int(length(eigs)/2)
+        numEigs = Int(length(eigs) / 2)
 
         #pairs = prepareEigPairs(eigs)
         matchedEigvals = zeros(Bool, numEigs)
@@ -564,35 +614,35 @@ function gradOscillation(eigsArray, eigsArrayData; error=mse)
         numPairs = length(pairs)
 
         if numPairsData > numPairs
-            for pd in 1:numPairsData
-                for j in 1:numEigs
+            for pd = 1:numPairsData
+                for j = 1:numEigs
 
                     if matchedEigvals[j]
-                        continue 
+                        continue
                     end
 
                     matchedEigvals[j] = true # j (will be) matched
 
                     minErrorRe = Inf
-                    minErrorIndex = nothing 
+                    minErrorIndex = nothing
 
                     re1 = eigs[(j-1)*2+1]
                     im1 = eigs[j*2]
-                    
-                    for k in 1:numEigs
 
-                        if matchedEigvals[k] 
+                    for k = 1:numEigs
+
+                        if matchedEigvals[k]
                             continue
                         end
 
                         re2 = eigs[(k-1)*2+1]
                         im2 = eigs[k*2]
-                        
-                        errorRe = error(re1, re2) 
-                        
+
+                        errorRe = error(re1, re2)
+
                         if errorRe < minErrorRe     # smaller? great!
                             minErrorRe = errorRe
-                            minErrorIndex = k 
+                            minErrorIndex = k
                         end
 
                         #loss += error
@@ -651,8 +701,8 @@ function gradDamping(args...; kwargs...)
     return gradEigCompare(getDamping, args...; kwargs...)
 end
 
-function denan!(ar; substitute=0.0)
-    for i in 1:length(ar)
+function denan!(ar; substitute = 0.0)
+    for i = 1:length(ar)
         if isnan(ar[i])
             ar[i] = substitute
         end
@@ -660,9 +710,9 @@ function denan!(ar; substitute=0.0)
     return ar
 end
 
-function denan_count!(ar; substitute=0.0)
+function denan_count!(ar; substitute = 0.0)
     numNaNs = 0
-    for i in 1:length(ar)
+    for i = 1:length(ar)
         if isnan(ar[i])
             ar[i] = substitute
             numNaNs += 1
@@ -673,7 +723,16 @@ end
 
 gradNames = ["SOL", "FRQ", "DMP", "STB", "OSC", "STF"]
 
-function train!(p_net, optim; epoch=25, numSteps=10000, reinitat=-1, gradMode=:GradMulti, gradFilter=[   1,     1,     1,     0,     1,     0], gradScale=[  1e0,  1e-1,   1e0,   1e3,   1e1,  1e0])
+function train!(
+    p_net,
+    optim;
+    epoch = 25,
+    numSteps = 10000,
+    reinitat = -1,
+    gradMode = :GradMulti,
+    gradFilter = [1, 1, 1, 0, 1, 0],
+    gradScale = [1e0, 1e-1, 1e0, 1e3, 1e1, 1e0],
+)
     bef = losssum(p_net[1])
     bef[1]
 
@@ -685,7 +744,7 @@ function train!(p_net, optim; epoch=25, numSteps=10000, reinitat=-1, gradMode=:G
     push!(solutions, solution)
     push!(params, copy(p_net[1]))
 
-    anim = @animate for i in 1:round(Integer, numSteps/epoch)
+    anim = @animate for i = 1:round(Integer, numSteps / epoch)
 
         if i == reinitat
             @info "Reinit optimizer"
@@ -700,22 +759,30 @@ function train!(p_net, optim; epoch=25, numSteps=10000, reinitat=-1, gradMode=:G
         comp = (g) -> sum(abs.(g))
         #comp = (g) -> max(abs.(g)...)
 
-        for e in 1:epoch
+        for e = 1:epoch
 
-            for j in 1:length(p_net)
-                
+            for j = 1:length(p_net)
+
                 jac = ForwardDiff.jacobian(losssum, p_net[j])
-                
-                gradSolution, numNaNs[1] = denan_count!(jac[1,:])
-                gradFrequency, numNaNs[2] = denan_count!(jac[2,:])
-                gradDamping, numNaNs[3] = denan_count!(jac[3,:])
-                gradStability, numNaNs[4] = denan_count!(jac[4,:])
-                gradOscillation, numNaNs[5] = denan_count!(jac[5,:])
-                gradStiffness, numNaNs[6] = denan_count!(jac[6,:])
+
+                gradSolution, numNaNs[1] = denan_count!(jac[1, :])
+                gradFrequency, numNaNs[2] = denan_count!(jac[2, :])
+                gradDamping, numNaNs[3] = denan_count!(jac[3, :])
+                gradStability, numNaNs[4] = denan_count!(jac[4, :])
+                gradOscillation, numNaNs[5] = denan_count!(jac[5, :])
+                gradStiffness, numNaNs[6] = denan_count!(jac[6, :])
 
                 usedGrad = zeros(Integer, 6)
 
-                grads = [gradSolution, gradFrequency, gradDamping, gradStability, gradOscillation, gradStiffness] .* gradFilter
+                grads =
+                    [
+                        gradSolution,
+                        gradFrequency,
+                        gradDamping,
+                        gradStability,
+                        gradOscillation,
+                        gradStiffness,
+                    ] .* gradFilter
                 grad = nothing
 
                 # opt a
@@ -723,8 +790,8 @@ function train!(p_net, optim; epoch=25, numSteps=10000, reinitat=-1, gradMode=:G
 
                     grad = zeros(length(grads[1]))
 
-                    for k in 1:length(grad)
-                        for g in 1:length(grads)
+                    for k = 1:length(grad)
+                        for g = 1:length(grads)
                             if gradFilter[g] > 0
                                 if abs(grads[g][k]) > abs(grad[k])
                                     grad[k] = grads[g][k]
@@ -735,12 +802,12 @@ function train!(p_net, optim; epoch=25, numSteps=10000, reinitat=-1, gradMode=:G
                     end
 
                 elseif gradMode == :GradSwitch
-                # opt b
-                
+                    # opt b
+
                     grad = zeros(length(grads[1]))
 
                     gradInd = 0
-                    for g in 1:length(grads)
+                    for g = 1:length(grads)
                         if gradFilter[g] > 0
                             if comp(grads[g]) > comp(grad)
                                 grad = copy(grads[g])
@@ -752,24 +819,24 @@ function train!(p_net, optim; epoch=25, numSteps=10000, reinitat=-1, gradMode=:G
                     usedGrad[gradInd] = 1
 
                 elseif gradMode == :GradSum # opt C
-                
+
                     grad = zeros(length(grads[1]))
 
-                    for g in 1:length(grads)
+                    for g = 1:length(grads)
                         if gradFilter[g] > 0
                             grad += grads[g]
                             usedGrad[g] = 1
                         end
                     end
-                    
+
                 elseif gradMode == :GradOrig # opt D
-                
+
                     grad = copy(grads[1])
                     usedGrad[1] = 1
 
-                elseif gradMode == :GradMulti 
+                elseif gradMode == :GradMulti
 
-                    for g in 1:length(grads)
+                    for g = 1:length(grads)
                         if gradFilter[g] > 0 && comp(grads[g]) > 0.0
                             tmpGrad = copy(grads[g])
                             step = Flux.Optimise.apply!(optim, p_net[j], tmpGrad)
@@ -789,31 +856,64 @@ function train!(p_net, optim; epoch=25, numSteps=10000, reinitat=-1, gradMode=:G
 
         closs = losssum(p_net[1])
 
-        push!(losses, (i*epoch, closs))
+        push!(losses, (i * epoch, closs))
         push!(solutions, solution)
-        push!(params, copy(p_net[1])) 
+        push!(params, copy(p_net[1]))
 
         str = "$(gradMode) [$(i*epoch) / $(numSteps)]\n------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
-        for g in 1:length(grads) 
-            str *= @sprintf("[%s][%d][%d] Min = %16.4f | Max = %16.4f | Val = %16.4f |    Loss = %16.4f |    Loss (Norm.) = %16.4f |   NaNs: %d\n", gradNames[g], gradFilter[g], usedGrad[g], min(abs.(grads[g])...), max(abs.(grads[g])...), comp(grads[g]), closs[g], closs[g] ./ gradScale[g], numNaNs[g])
+        for g = 1:length(grads)
+            str *= @sprintf(
+                "[%s][%d][%d] Min = %16.4f | Max = %16.4f | Val = %16.4f |    Loss = %16.4f |    Loss (Norm.) = %16.4f |   NaNs: %d\n",
+                gradNames[g],
+                gradFilter[g],
+                usedGrad[g],
+                min(abs.(grads[g])...),
+                max(abs.(grads[g])...),
+                comp(grads[g]),
+                closs[g],
+                closs[g] ./ gradScale[g],
+                numNaNs[g]
+            )
         end
 
         str *= "------------------------------------------------------------------------------------------------------------------------------------------------------------------\n"
         if grad != nothing
-            str *= @sprintf("[RES]       Min = %16.4f | Max = %16.4f | Val = %16.4f | SumLoss = %16.4f | SumLoss (Norm.) = %16.4f\n", min(abs.(grad)...), max(abs.(grad)...), comp(grad), sum(denan!(closs) .* gradFilter), sum(denan!(closs) .* gradFilter ./ gradScale))
+            str *= @sprintf(
+                "[RES]       Min = %16.4f | Max = %16.4f | Val = %16.4f | SumLoss = %16.4f | SumLoss (Norm.) = %16.4f\n",
+                min(abs.(grad)...),
+                max(abs.(grad)...),
+                comp(grad),
+                sum(denan!(closs) .* gradFilter),
+                sum(denan!(closs) .* gradFilter ./ gradScale)
+            )
         else
-            str *= @sprintf("[RES]                                                                                | SumLoss = %16.4f | SumLoss (Norm.) = %16.4f\n\n", sum(denan!(closs) .* gradFilter), sum(denan!(closs) .* gradFilter ./ gradScale))
+            str *= @sprintf(
+                "[RES]                                                                                | SumLoss = %16.4f | SumLoss (Norm.) = %16.4f\n\n",
+                sum(denan!(closs) .* gradFilter),
+                sum(denan!(closs) .* gradFilter ./ gradScale)
+            )
         end
         @info "$str"
 
         # Solution plotting
-        fig = startPlot(; layout=(3,1), size=(480, 480*3))
-        plot!(fig[1], saveat, collect(ForwardDiff.value(u[1]) for u in solution.u), label="s NeuralODE", title="Training step $(i*epoch) ($(gradMode), reinit=$(reinitat))"); # , ylims=(-x0[1],x0[1])
-        plot!(fig[1], saveat, posData, label="s Data")
+        fig = startPlot(; layout = (3, 1), size = (480, 480 * 3))
+        plot!(
+            fig[1],
+            saveat,
+            collect(ForwardDiff.value(u[1]) for u in solution.u),
+            label = "s NeuralODE",
+            title = "Training step $(i*epoch) ($(gradMode), reinit=$(reinitat))",
+        ) # , ylims=(-x0[1],x0[1])
+        plot!(fig[1], saveat, posData, label = "s Data")
 
         if numStates == 4
-            plot!(fig[1], saveat, collect(ForwardDiff.value(u[3]) for u in solution.u), label="s2 NeuralODE"); # , ylims=(-x0[1],x0[1])
-            plot!(fig[1], saveat, pos2Data, label="s2 Data")
+            plot!(
+                fig[1],
+                saveat,
+                collect(ForwardDiff.value(u[3]) for u in solution.u),
+                label = "s2 NeuralODE",
+            ) # , ylims=(-x0[1],x0[1])
+            plot!(fig[1], saveat, pos2Data, label = "s2 Data")
         end
 
         # Eigs plotting
@@ -821,45 +921,56 @@ function train!(p_net, optim; epoch=25, numSteps=10000, reinitat=-1, gradMode=:G
 
         # Loss plotting
         s = zeros(length(losses))
-        plot!(fig[3]; legend=:bottomleft) # yaxis=:log, 
-        for g in 1:length(grads) 
+        plot!(fig[3]; legend = :bottomleft) # yaxis=:log, 
+        for g = 1:length(grads)
             if gradFilter[g] > 0
                 vals = collect(e[2][g] for e in losses)
                 divider = max(vals...)
-                plot!(fig[3], collect(e[1] for e in losses), vals ./ divider, label="$(gradNames[g])")
+                plot!(
+                    fig[3],
+                    collect(e[1] for e in losses),
+                    vals ./ divider,
+                    label = "$(gradNames[g])",
+                )
                 s += vals
             end
         end
 
         divider = max(s...)
-        plot!(fig[3], collect(e[1] for e in losses), s ./ divider, style=:dash, label="SUM")
-        
+        plot!(
+            fig[3],
+            collect(e[1] for e in losses),
+            s ./ divider,
+            style = :dash,
+            label = "SUM",
+        )
+
         display(fig)
     end
 
     return anim, losses, solutions, params
 end
 
-COLORS = Colors.distinguishable_colors(numStates+2, [RGB(1,1,1), RGB(0,0,0)])[3:end]
-function plotImaginary!(fig, eigsArray, eigsData; limit::Real=0.0, kwargs...)
-    limitX = limit 
+COLORS = Colors.distinguishable_colors(numStates + 2, [RGB(1, 1, 1), RGB(0, 0, 0)])[3:end]
+function plotImaginary!(fig, eigsArray, eigsData; limit::Real = 0.0, kwargs...)
+    limitX = limit
     limitY = limit
 
-    numEigs = Int(length(eigsArray[1])/2)
+    numEigs = Int(length(eigsArray[1]) / 2)
 
-    for eigs in eigsArray[[1,end]]
+    for eigs in eigsArray[[1, end]]
 
         if limit == 0.0
 
-            reals = collect(eigs[(i-1)*2+1] for i in 1:numEigs)
-            imags = collect(eigs[i*2] for i in 1:numEigs)
-            for i in 1:numEigs
+            reals = collect(eigs[(i-1)*2+1] for i = 1:numEigs)
+            imags = collect(eigs[i*2] for i = 1:numEigs)
+            for i = 1:numEigs
                 re = abs(reals[i])
                 im = abs(imags[i])
                 if re > limitX
                     limitX = re
                 end
-                if im > limitY 
+                if im > limitY
                     limitY = im
                 end
             end
@@ -867,19 +978,19 @@ function plotImaginary!(fig, eigsArray, eigsData; limit::Real=0.0, kwargs...)
         end
     end
 
-    for eigs in eigsData[[1,end]]
+    for eigs in eigsData[[1, end]]
 
         if limit == 0.0
 
-            reals = collect(eigs[(i-1)*2+1] for i in 1:numEigs)
-            imags = collect(eigs[i*2] for i in 1:numEigs)
-            for i in 1:numEigs
+            reals = collect(eigs[(i-1)*2+1] for i = 1:numEigs)
+            imags = collect(eigs[i*2] for i = 1:numEigs)
+            for i = 1:numEigs
                 re = abs(reals[i])
                 im = abs(imags[i])
                 if re > limitX
                     limitX = re
                 end
-                if im > limitY 
+                if im > limitY
                     limitY = im
                 end
             end
@@ -887,8 +998,25 @@ function plotImaginary!(fig, eigsArray, eigsData; limit::Real=0.0, kwargs...)
         end
     end
 
-    Plots.plot!(fig, [0, 0], [-limitY,limitY]; color=:black, style=:dash, label=:none, xlabel="Re", ylabel="Im", kwargs...)
-    Plots.plot!(fig, [-limitX, limitX], [0,0]; color=:black, style=:dash, label=:none)
+    Plots.plot!(
+        fig,
+        [0, 0],
+        [-limitY, limitY];
+        color = :black,
+        style = :dash,
+        label = :none,
+        xlabel = "Re",
+        ylabel = "Im",
+        kwargs...,
+    )
+    Plots.plot!(
+        fig,
+        [-limitX, limitX],
+        [0, 0];
+        color = :black,
+        style = :dash,
+        label = :none,
+    )
 
     # for j in 1:2
     #     eigs = eigsArray[[1,end]][j]
@@ -903,18 +1031,32 @@ function plotImaginary!(fig, eigsArray, eigsData; limit::Real=0.0, kwargs...)
     #     Plots.scatter!(fig, realsData, imagsData, marker=:x, label="t=$(round((j-1)*10.0; digits=1)) | Data")
     # end
 
-    for j in 1:numEigs
+    for j = 1:numEigs
         # SIM
         reals = collect(eigs[(j-1)*2+1] for eigs in eigsArray)
         imags = collect(eigs[j*2] for eigs in eigsArray)
 
-        Plots.plot!(fig, reals, imags, label="Eigval #$(j)", color=COLORS[j])
+        Plots.plot!(fig, reals, imags, label = "Eigval #$(j)", color = COLORS[j])
 
         # DATA
         reals = collect(eigs[(j-1)*2+1] for eigs in eigsData)
         imags = collect(eigs[j*2] for eigs in eigsData)
 
-        Plots.plot!(fig, reals, imags, label="Eigval #$(j) [Data]", color=COLORS[j], style=:dash)
-        Plots.scatter!(fig, [reals[end]], [imags[end]], marker=:x, label="Eigval #$(j) [Data, t=10.0s]", color=COLORS[j])
+        Plots.plot!(
+            fig,
+            reals,
+            imags,
+            label = "Eigval #$(j) [Data]",
+            color = COLORS[j],
+            style = :dash,
+        )
+        Plots.scatter!(
+            fig,
+            [reals[end]],
+            [imags[end]],
+            marker = :x,
+            label = "Eigval #$(j) [Data, t=10.0s]",
+            color = COLORS[j],
+        )
     end
 end

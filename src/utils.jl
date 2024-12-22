@@ -44,11 +44,11 @@ function unsense(e)
 end
 
 # ToDo
-function comp2Arr(comp::Union{AbstractVector, AbstractMatrix})
+function comp2Arr(comp::Union{AbstractVector,AbstractMatrix})
     l = length(comp)
     a = Real[]
 
-    for i in 1:l
+    for i = 1:l
         re = real(comp[i])
         im = imag(comp[i])
 
@@ -70,9 +70,9 @@ function arr2Comp(arr::AbstractVector, size)
         im = arr[i+1]
 
         push!(a, Complex(re, im))
-        
+
         # inc by 2
-        i+=2
+        i += 2
     end
 
     return reshape(a, size)
