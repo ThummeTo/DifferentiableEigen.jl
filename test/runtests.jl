@@ -11,17 +11,17 @@ import Zygote
 import LinearAlgebra
 import FiniteDifferences
 
-A = [1.0 1.5 3.0; -0.3 -0.1 5.0; 1.1 3.4 -3.8] 
+A = [1.0 1.5 3.0; -0.3 -0.1 5.0; 1.1 3.4 -3.8]
 x = [1.0; 2.2; -1.2]
 
 function eigvals(A)
     vals, vecs = eigen(A)
-    return vals 
+    return vals
 end
 
 function eigvecs(A)
     vals, vecs = eigen(A)
-    return vecs 
+    return vecs
 end
 
 function to_diff_eigvals(x)
@@ -44,12 +44,14 @@ end
         @test DifferentiableEigen.comp2Arr(v̂ec) ≈ vec
     end
 
-    grad_val_fd = nothing 
+    grad_val_fd = nothing
     grad_vec_fd = nothing
 
     @testset "FiniteDifferences" begin
-        grad_val_fd = FiniteDifferences.grad(FiniteDifferences.central_fdm(5, 1), to_diff_eigvals, x)[1]
-        grad_vec_fd = FiniteDifferences.grad(FiniteDifferences.central_fdm(5, 1), to_diff_eigvecs, x)[1]
+        grad_val_fd =
+            FiniteDifferences.grad(FiniteDifferences.central_fdm(5, 1), to_diff_eigvals, x)[1]
+        grad_vec_fd =
+            FiniteDifferences.grad(FiniteDifferences.central_fdm(5, 1), to_diff_eigvecs, x)[1]
     end
 
     @testset "ForwardDiff" begin

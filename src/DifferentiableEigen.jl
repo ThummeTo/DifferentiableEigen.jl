@@ -21,22 +21,22 @@ include(joinpath(@__DIR__, "utils.jl"))
 function eigen(A::AbstractMatrix)
     A = unsense(A)
     val, vec = LinearAlgebra.eigen(A)
-    
-    return comp2Arr(val), comp2Arr(vec) 
+
+    return comp2Arr(val), comp2Arr(vec)
 end
 export eigen
 
 function ChainRulesCore.frule((Δself, ΔA), ::typeof(eigen), A::AbstractMatrix)
-    
-    e,U = LinearAlgebra.eigen(unsense(A))
-    
-    n = size(A,1)
 
-    Ω = comp2Arr(e), comp2Arr(U) 
+    e, U = LinearAlgebra.eigen(unsense(A))
+
+    n = size(A, 1)
+
+    Ω = comp2Arr(e), comp2Arr(U)
     ∂e = ZeroTangent()
     ∂U = ZeroTangent()
 
-    F = [i==j ? 0 : inv(e[j] - e[i]) for i=1:n, j=1:n]
+    F = [i == j ? 0 : inv(e[j] - e[i]) for i = 1:n, j = 1:n]
 
     UAU = ΔA
 
@@ -44,20 +44,20 @@ function ChainRulesCore.frule((Δself, ΔA), ::typeof(eigen), A::AbstractMatrix)
         UAU = inv(U) * ΔA * U
     end
 
-    ∂e = diag(UAU) 
+    ∂e = diag(UAU)
     ∂U = U * (F .* UAU)
 
-    ∂Ω = (comp2Arr(∂e), comp2Arr(∂U)) 
+    ∂Ω = (comp2Arr(∂e), comp2Arr(∂U))
 
-    return Ω, ∂Ω 
+    return Ω, ∂Ω
 end
 
 function ChainRulesCore.rrule(::typeof(eigen), A::AbstractMatrix)
-    
+
     eU = LinearAlgebra.eigen(A)
 
-    e,U = eU
-    n = size(A,1)
+    e, U = eU
+    n = size(A, 1)
 
     Ω = eU
 
@@ -67,22 +67,22 @@ function ChainRulesCore.rrule(::typeof(eigen), A::AbstractMatrix)
 
         Ā = ZeroTangent()
 
-        D̄ = nothing 
-        
+        D̄ = nothing
+
         if ē != nothing && ē != ZeroTangent()
             D̄ = diagm(ē)
         end
-        
+
         if Ū === nothing
             Ā = inv(U)' * D̄ * U'
 
         elseif D̄ === nothing
-            F = [i==j ? 0 : inv(e[j] - e[i]) for i=1:n, j=1:n]
-            Ā = inv(U)'*(F .* (U' * Ū))*U'
+            F = [i == j ? 0 : inv(e[j] - e[i]) for i = 1:n, j = 1:n]
+            Ā = inv(U)' * (F .* (U' * Ū)) * U'
 
         else
-            F = [i==j ? 0 : inv(e[j] - e[i]) for i=1:n, j=1:n]
-            Ā = inv(U)'*(D̄ + F .* (U' * Ū))*U'
+            F = [i == j ? 0 : inv(e[j] - e[i]) for i = 1:n, j = 1:n]
+            Ā = inv(U)' * (D̄ + F .* (U' * Ū)) * U'
 
         end
 
@@ -91,7 +91,7 @@ function ChainRulesCore.rrule(::typeof(eigen), A::AbstractMatrix)
         ∂Ω = f̄, Ā
     end
 
-    return Ω, pullback 
+    return Ω, pullback
 end
 
 import ForwardDiffChainRules: @ForwardDiff_frule
