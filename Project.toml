@@ -1,7 +1,7 @@
 name = "DifferentiableEigen"
 uuid = "73a20539-4e65-4dcb-a56d-dc20f210a01b"
 authors = ["TT <tobias.thummerer@informatik.uni-augsburg.de>", "LM <lars.mikelsons@informatik.uni-augsburg.de>"]
-version = "0.2.2"
+version = "0.2.1"
 
 [deps]
 ForwardDiffChainRules = "c9556dd2-1aed-4cfe-8560-1557cf593001"
